@@ -400,7 +400,9 @@ export function LessonForm({
 
       if (!result?.success) {
         throw new Error(
-          "Unable to save lesson.",
+          "error" in result
+            ? result.error
+            : "Unable to save lesson.",
         );
       }
 

@@ -167,7 +167,7 @@ async function deleteVideo(
 /* CREATE LESSON                                                              */
 /* -------------------------------------------------------------------------- */
 
-export async function createLesson(
+async function createLessonAction(
   formData: FormData,
 ) {
   const { supabase, user } =
@@ -277,11 +277,29 @@ export async function createLesson(
   };
 }
 
+export async function createLesson(
+  formData: FormData,
+) {
+  try {
+    return await createLessonAction(formData);
+  } catch (error) {
+    console.error("Failed to create lesson:", error);
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create lesson.",
+    };
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* UPDATE LESSON                                                              */
 /* -------------------------------------------------------------------------- */
 
-export async function updateLesson(
+async function updateLessonAction(
   formData: FormData,
 ) {
   const { supabase, user } =
@@ -429,6 +447,24 @@ export async function updateLesson(
     success: true,
     lessonId,
   };
+}
+
+export async function updateLesson(
+  formData: FormData,
+) {
+  try {
+    return await updateLessonAction(formData);
+  } catch (error) {
+    console.error("Failed to update lesson:", error);
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update lesson.",
+    };
+  }
 }
 
 /* -------------------------------------------------------------------------- */
