@@ -5,8 +5,7 @@ import { Header } from "@/components/Header";
 import { EnrollButton } from "@/components/EnrollButton";
 import { createClient } from "@/lib/supabase/server";
 import { 
-  BarChart3, 
-  Sparkles, 
+ 
   Clock, 
   ShieldCheck, 
   BookOpen, 

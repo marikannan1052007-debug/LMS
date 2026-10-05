@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight,  CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight,  CheckCircle2,  } from "lucide-react";
 
 import { Header } from "@/components/Header";
 
@@ -102,7 +102,7 @@ export default function Home() {
                 variants={fadeUpVariants}
                 className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#d1d7dc] bg-white px-4 py-2 text-sm font-bold shadow-sm"
               >
-                <Sparkles className="h-4 w-4 text-[#5624d0]" />
+               
                 Learn. Build. Grow.
               </motion.div>
 
