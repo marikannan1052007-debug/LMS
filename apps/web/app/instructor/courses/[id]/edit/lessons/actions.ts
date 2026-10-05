@@ -5,44 +5,22 @@ import { lessonSchema } from "@/lib/validations/lesson";
 
 const VIDEO_BUCKET = "course-videos";
 
-const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+function validateVideoPath(
+  videoPath: string,
+  userId: string,
+  courseId: string,
+) {
+  const parts = videoPath.split("/");
+  const fileName = parts[3] ?? "";
 
-const ALLOWED_VIDEO_TYPES = [
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-];
-
-function getExtension(fileName: string) {
-  const extension = fileName
-    .split(".")
-    .pop()
-    ?.toLowerCase();
-
-  if (!extension) {
-    throw new Error(
-      "Unable to determine video file extension.",
-    );
-  }
-
-  return extension;
-}
-
-function validateVideo(file: File) {
-  if (!file || file.size === 0) {
-    throw new Error("Please select a video.");
-  }
-
-  if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
-    throw new Error(
-      "Only MP4, WebM, and MOV videos are allowed.",
-    );
-  }
-
-  if (file.size > MAX_VIDEO_SIZE) {
-    throw new Error(
-      "Video size must be 500MB or less.",
-    );
+  if (
+    parts.length !== 4 ||
+    parts[0] !== userId ||
+    parts[1] !== courseId ||
+    !/^[0-9a-f-]{36}$/i.test(parts[2] ?? "") ||
+    !/^[0-9a-f-]{36}\.(mp4|webm|mov)$/i.test(fileName)
+  ) {
+    throw new Error("Invalid uploaded video path.");
   }
 }
 
@@ -160,45 +138,6 @@ async function verifySectionOwnership(
 }
 
 /* -------------------------------------------------------------------------- */
-/* UPLOAD VIDEO                                                               */
-/* -------------------------------------------------------------------------- */
-
-async function uploadVideo(
-  supabase: Awaited<
-    ReturnType<typeof createClient>
-  >,
-  file: File,
-  userId: string,
-  courseId: string,
-  lessonId: string,
-) {
-  validateVideo(file);
-
-  const extension = getExtension(file.name);
-
-  // Random filename prevents collisions
-  // when replacing videos.
-  const filePath = `${userId}/${courseId}/${lessonId}/${crypto.randomUUID()}.${extension}`;
-
-  const arrayBuffer = await file.arrayBuffer();
-
-  const { error } = await supabase.storage
-    .from(VIDEO_BUCKET)
-    .upload(filePath, arrayBuffer, {
-      contentType: file.type,
-      upsert: false,
-    });
-
-  if (error) {
-    throw new Error(
-      `Video upload failed: ${error.message}`,
-    );
-  }
-
-  return filePath;
-}
-
-/* -------------------------------------------------------------------------- */
 /* DELETE VIDEO                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -261,15 +200,17 @@ export async function createLesson(
   const isPreview =
     formData.get("isPreview") === "true";
 
-  const video = formData.get("video");
+  const videoPath = String(
+    formData.get("videoPath") ?? "",
+  ).trim();
 
-  if (!(video instanceof File)) {
+  if (!videoPath) {
     throw new Error(
       "Please select a video.",
     );
   }
 
-  validateVideo(video);
+  validateVideoPath(videoPath, user.id, courseId);
 
   /*
    * IMPORTANT:
@@ -314,7 +255,7 @@ export async function createLesson(
       description:
         parsed.data.description || null,
       content: null,
-      video_url: null,
+      video_url: videoPath,
       duration_seconds:
         parsed.data.durationSeconds,
       position: parsed.data.position,
@@ -330,57 +271,10 @@ export async function createLesson(
     );
   }
 
-  try {
-    const videoPath = await uploadVideo(
-      supabase,
-      video,
-      user.id,
-      courseId,
-      lesson.id,
-    );
-
-    const {
-      error: updateError,
-    } = await supabase
-      .from("lessons")
-      .update({
-        video_url: videoPath,
-      })
-      .eq("id", lesson.id);
-
-    if (updateError) {
-      await deleteVideo(
-        supabase,
-        videoPath,
-      );
-
-      await supabase
-        .from("lessons")
-        .delete()
-        .eq("id", lesson.id);
-
-      throw new Error(
-        updateError.message,
-      );
-    }
-
-    return {
-      success: true,
-      lessonId: lesson.id,
-    };
-  } catch (error) {
-    /*
-     * If video upload or update fails,
-     * remove the lesson record so we
-     * don't leave an incomplete lesson.
-     */
-    await supabase
-      .from("lessons")
-      .delete()
-      .eq("id", lesson.id);
-
-    throw error;
-  }
+  return {
+    success: true,
+    lessonId: lesson.id,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -424,7 +318,9 @@ export async function updateLesson(
   const isPreview =
     formData.get("isPreview") === "true";
 
-  const video = formData.get("video");
+  const videoPath = String(
+    formData.get("videoPath") ?? "",
+  ).trim();
 
   if (!lessonId) {
     throw new Error(
@@ -472,30 +368,10 @@ export async function updateLesson(
     );
   }
 
-  let newVideoPath: string | null =
-    null;
+  const newVideoPath = videoPath || null;
 
-  /*
-   * If instructor selected a new video:
-   *
-   * 1. Upload new video
-   * 2. Update database
-   * 3. Delete old video
-   */
-  if (
-    video instanceof File &&
-    video.size > 0
-  ) {
-    validateVideo(video);
-
-    newVideoPath =
-      await uploadVideo(
-        supabase,
-        video,
-        user.id,
-        courseId,
-        lessonId,
-      );
+  if (newVideoPath) {
+    validateVideoPath(newVideoPath, user.id, courseId);
   }
 
   const {

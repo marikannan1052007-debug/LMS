@@ -13,6 +13,7 @@ import {
   createLesson,
   updateLesson,
 } from "@/app/instructor/courses/[id]/edit/lessons/actions";
+import { createClient } from "@/lib/supabase/client";
 
 type LessonFormProps = {
   sectionId: string;
@@ -36,6 +37,12 @@ const ALLOWED_VIDEO_TYPES = [
   "video/webm",
   "video/quicktime",
 ];
+
+const VIDEO_EXTENSIONS: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+};
 
 function formatDuration(seconds: number) {
   if (!seconds || seconds <= 0) {
@@ -286,8 +293,49 @@ export function LessonForm({
     }
 
     setSubmitting(true);
+    let uploadedVideoPath: string | null = null;
 
     try {
+      if (selectedFile) {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw new Error(userError.message);
+        }
+
+        if (!user) {
+          throw new Error("You must be logged in to upload a video.");
+        }
+
+        const extension =
+          VIDEO_EXTENSIONS[selectedFile.type];
+
+        if (!extension) {
+          throw new Error(
+            "Unable to determine video file extension.",
+          );
+        }
+
+        const videoPath = `${user.id}/${courseId}/${crypto.randomUUID()}/${crypto.randomUUID()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("course-videos")
+          .upload(videoPath, selectedFile, {
+            contentType: selectedFile.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Video upload failed: ${uploadError.message}`);
+        }
+
+        uploadedVideoPath = videoPath;
+      }
+
       const formData =
         new FormData();
 
@@ -332,17 +380,17 @@ export function LessonForm({
         String(isPreview),
       );
 
+      if (uploadedVideoPath) {
+        formData.set(
+          "videoPath",
+          uploadedVideoPath,
+        );
+      }
+
       if (lessonId) {
         formData.set(
           "lessonId",
           lessonId,
-        );
-      }
-
-      if (selectedFile) {
-        formData.set(
-          "video",
-          selectedFile,
         );
       }
 
@@ -355,6 +403,8 @@ export function LessonForm({
           "Unable to save lesson.",
         );
       }
+
+      uploadedVideoPath = null;
 
       setSuccess(
         lessonId
@@ -369,11 +419,35 @@ export function LessonForm({
         error,
       );
 
-      setError(
+      let errorMessage =
         error instanceof Error
           ? error.message
-          : "Unable to save lesson.",
-      );
+          : "Unable to save lesson.";
+
+      if (uploadedVideoPath) {
+        try {
+          const { error: cleanupError } = await createClient()
+            .storage
+            .from("course-videos")
+            .remove([uploadedVideoPath]);
+
+          if (cleanupError) {
+            console.error(
+              "Failed to clean up uploaded video:",
+              cleanupError,
+            );
+            errorMessage += " The uploaded video could not be cleaned up.";
+          }
+        } catch (cleanupError) {
+          console.error(
+            "Failed to clean up uploaded video:",
+            cleanupError,
+          );
+          errorMessage += " The uploaded video could not be cleaned up.";
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
