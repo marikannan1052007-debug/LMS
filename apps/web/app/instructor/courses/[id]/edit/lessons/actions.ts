@@ -567,6 +567,12 @@ export async function deleteLesson(
   const { supabase, user } =
     await requireInstructor();
 
+    console.log("CREATE LESSON DATA:", {
+  sectionId,
+  courseId,
+  userId: user.id,
+});
+
   await verifySectionOwnership(
     sectionId,
     courseId,
