@@ -90,6 +90,11 @@ export function CourseSection({
       );
 
       formData.append(
+        "course_id",
+        courseId,
+      );
+
+      formData.append(
         "title",
         trimmedTitle,
       );
@@ -136,6 +141,11 @@ export function CourseSection({
       formData.append(
         "section_id",
         section.id,
+      );
+
+      formData.append(
+        "course_id",
+        courseId,
       );
 
       await deleteSection(formData);
