@@ -1,0 +1,56 @@
+@"
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Vite
+dist/
+
+# Turbo
+.turbo/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing / coverage
+coverage/
+
+# Build / cache
+.cache/
+.parcel-cache/
+
+# Misc
+.vercel/
+
+# Large/local files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar
+*.gz
+"@ | Set-Content .gitignore
